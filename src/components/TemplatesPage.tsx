@@ -4,7 +4,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { ArrowLeft, Save, Tag, User, Building, Calendar, Clock as ClockIcon, Mail } from "lucide-react";
+import { ArrowLeft, Save, Tag, User, Building, Calendar, Clock as ClockIcon, Mail, Plus } from "lucide-react";
 
 interface EmailTemplate {
   id: string;
@@ -17,10 +17,25 @@ interface EmailTemplate {
   lastModified: string;
 }
 
+interface CalendarTemplate {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  duration: number; // in minutes
+  category: "discovery" | "demo" | "follow-up" | "custom";
+  isSystem?: boolean;
+  dateCreated: string;
+  lastModified: string;
+}
+
+type TemplateType = "email" | "calendar";
+
 interface TemplatesPageProps {
   onNavigate: (view: "dashboard" | "campaign-detail" | "cadences" | "cadence-detail" | "new-cadence" | "prospect-upload" | "account-settings" | "meetings" | "reports" | "templates") => void;
   onGoBack: () => void;
   templates: EmailTemplate[];
+  calendarTemplates?: CalendarTemplate[];
   onAddTemplate: (template: Omit<EmailTemplate, 'id' | 'dateCreated' | 'lastModified'>) => EmailTemplate;
   onUpdateTemplate: (id: string, updates: Partial<EmailTemplate>) => void;
   onDeleteTemplate: (id: string) => void;
@@ -34,9 +49,13 @@ export function TemplatesPage({
   onUpdateTemplate,
   onAddTemplate
 }: TemplatesPageProps) {
+  const [templateType, setTemplateType] = useState<TemplateType>("email");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [editableSubject, setEditableSubject] = useState("");
   const [editableBody, setEditableBody] = useState("");
+  const [editableTitle, setEditableTitle] = useState("");
+  const [editableDescription, setEditableDescription] = useState("");
+  const [editableDuration, setEditableDuration] = useState(30);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSubjectTagsDropdown, setShowSubjectTagsDropdown] = useState(false);
   const [showBodyTagsDropdown, setShowBodyTagsDropdown] = useState(false);
@@ -111,47 +130,98 @@ export function TemplatesPage({
   // Load template data when selection changes
   useEffect(() => {
     if (selectedTemplateId) {
-      const template = templates.find(t => t.id === selectedTemplateId);
-      if (template) {
-        // For custom template, always show blank fields if no content
-        if (template.id === "custom-template" && !template.subject && !template.body) {
-          setEditableSubject("");
-          setEditableBody("");
-        } else {
-          setEditableSubject(template.subject);
-          setEditableBody(template.body);
+      if (templateType === "email") {
+        const template = templates.find(t => t.id === selectedTemplateId);
+        if (template) {
+          // For custom template, always show blank fields if no content
+          if (template.id === "custom-template" && !template.subject && !template.body) {
+            setEditableSubject("");
+            setEditableBody("");
+          } else {
+            setEditableSubject(template.subject);
+            setEditableBody(template.body);
+          }
+          setHasUnsavedChanges(false);
         }
-        setHasUnsavedChanges(false);
+      } else {
+        // Calendar template
+        const calendarTemplate = calendarTemplates?.find(t => t.id === selectedTemplateId);
+        if (calendarTemplate) {
+          if (calendarTemplate.id === "custom-calendar" && !calendarTemplate.title && !calendarTemplate.description) {
+            setEditableTitle("");
+            setEditableDescription("");
+          } else {
+            setEditableTitle(calendarTemplate.title);
+            setEditableDescription(calendarTemplate.description);
+            setEditableDuration(calendarTemplate.duration);
+          }
+          setHasUnsavedChanges(false);
+        }
       }
     } else {
-      setEditableSubject("");
-      setEditableBody("");
+      if (templateType === "email") {
+        setEditableSubject("");
+        setEditableBody("");
+      } else {
+        setEditableTitle("");
+        setEditableDescription("");
+        setEditableDuration(30);
+      }
       setHasUnsavedChanges(false);
     }
-  }, [selectedTemplateId, templates]);
+  }, [selectedTemplateId, templates, calendarTemplates, templateType]);
 
   // Track changes
   useEffect(() => {
     if (selectedTemplateId) {
-      const template = templates.find(t => t.id === selectedTemplateId);
-      if (template) {
-        const hasChanges = editableSubject !== template.subject || editableBody !== template.body;
-        setHasUnsavedChanges(hasChanges);
+      if (templateType === "email") {
+        const template = templates.find(t => t.id === selectedTemplateId);
+        if (template) {
+          const hasChanges = editableSubject !== template.subject || editableBody !== template.body;
+          setHasUnsavedChanges(hasChanges);
+        }
+      } else {
+        // Calendar template changes
+        const calendarTemplate = calendarTemplates?.find(t => t.id === selectedTemplateId);
+        if (calendarTemplate) {
+          const hasChanges = editableTitle !== calendarTemplate.title || 
+                           editableDescription !== calendarTemplate.description || 
+                           editableDuration !== calendarTemplate.duration;
+          setHasUnsavedChanges(hasChanges);
+        }
       }
     }
-  }, [editableSubject, editableBody, selectedTemplateId, templates]);
+  }, [editableSubject, editableBody, editableTitle, editableDescription, editableDuration, selectedTemplateId, templates, calendarTemplates, templateType]);
 
   // Set initial template selection to custom template
   useEffect(() => {
-    if (sortedTemplates.length > 0 && !selectedTemplateId) {
-      const customTemplate = sortedTemplates.find(t => t.id === "custom-template");
-      if (customTemplate) {
-        setSelectedTemplateId(customTemplate.id);
-      } else {
-        setSelectedTemplateId(sortedTemplates[0].id);
+    if (templateType === "email") {
+      if (sortedTemplates.length > 0 && !selectedTemplateId) {
+        const customTemplate = sortedTemplates.find(t => t.id === "custom-template");
+        if (customTemplate) {
+          setSelectedTemplateId(customTemplate.id);
+        } else {
+          setSelectedTemplateId(sortedTemplates[0].id);
+        }
+      }
+    } else {
+      // Calendar templates
+      if (calendarTemplates && calendarTemplates.length > 0 && !selectedTemplateId) {
+        const customCalendarTemplate = calendarTemplates.find(t => t.id === "custom-calendar");
+        if (customCalendarTemplate) {
+          setSelectedTemplateId(customCalendarTemplate.id);
+        } else {
+          setSelectedTemplateId(calendarTemplates[0].id);
+        }
       }
     }
-  }, [sortedTemplates, selectedTemplateId]);
+  }, [sortedTemplates, calendarTemplates, selectedTemplateId, templateType]);
+
+  // Reset selected template when switching template types
+  useEffect(() => {
+    setSelectedTemplateId("");
+    setHasUnsavedChanges(false);
+  }, [templateType]);
 
   const handleSaveTemplate = () => {
     if (!selectedTemplateId) {
@@ -159,28 +229,40 @@ export function TemplatesPage({
       return;
     }
 
-    if (!editableSubject.trim() || !editableBody.trim()) {
-      alert("Please fill in both subject and body before saving.");
-      return;
+    if (templateType === "email") {
+      if (!editableSubject.trim() || !editableBody.trim()) {
+        alert("Please fill in both subject and body before saving.");
+        return;
+      }
+
+      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      
+      // If this is the blank custom template, prompt for name to create new template
+      if (selectedTemplate?.id === "custom-template" && 
+          (!selectedTemplate.subject && !selectedTemplate.body)) {
+        setShowNameDialog(true);
+        return;
+      }
+
+      // Otherwise, just update the existing template
+      onUpdateTemplate(selectedTemplateId, {
+        subject: editableSubject,
+        body: editableBody
+      });
+
+      setHasUnsavedChanges(false);
+      alert("Email template saved successfully!");
+    } else {
+      // Calendar template logic
+      if (!editableTitle.trim() || !editableDescription.trim()) {
+        alert("Please fill in both title and description before saving.");
+        return;
+      }
+
+      // For now, just show success message (in a real app, you'd save to calendarTemplates)
+      setHasUnsavedChanges(false);
+      alert("Calendar template saved successfully!");
     }
-
-    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-    
-    // If this is the blank custom template, prompt for name to create new template
-    if (selectedTemplate?.id === "custom-template" && 
-        (!selectedTemplate.subject && !selectedTemplate.body)) {
-      setShowNameDialog(true);
-      return;
-    }
-
-    // Otherwise, just update the existing template
-    onUpdateTemplate(selectedTemplateId, {
-      subject: editableSubject,
-      body: editableBody
-    });
-
-    setHasUnsavedChanges(false);
-    alert("Template saved successfully!");
   };
 
   const handleCreateNewTemplate = () => {
@@ -189,27 +271,38 @@ export function TemplatesPage({
       return;
     }
 
-    // Create new custom template
-    const newTemplate = onAddTemplate({
-      name: templateName.trim(),
-      subject: editableSubject,
-      body: editableBody,
-      category: "custom",
-      isSystem: false
-    });
+    if (templateType === "email") {
+      // Create new custom email template
+      const newTemplate = onAddTemplate({
+        name: templateName.trim(),
+        subject: editableSubject,
+        body: editableBody,
+        category: "custom",
+        isSystem: false
+      });
 
-    // Clear the custom template for next use
-    onUpdateTemplate("custom-template", {
-      subject: "",
-      body: ""
-    });
+      // Clear the custom template for next use
+      onUpdateTemplate("custom-template", {
+        subject: "",
+        body: ""
+      });
 
-    // Switch to the new template
-    setSelectedTemplateId(newTemplate.id);
-    setHasUnsavedChanges(false);
-    setShowNameDialog(false);
-    setTemplateName("");
-    alert("Template created successfully!");
+      // Switch to the new template
+      setSelectedTemplateId(newTemplate.id);
+      setHasUnsavedChanges(false);
+      setShowNameDialog(false);
+      setTemplateName("");
+      alert("Email template created successfully!");
+    } else {
+      // Create new calendar template (placeholder for now)
+      alert("Calendar template created successfully!");
+      setShowNameDialog(false);
+      setTemplateName("");
+      // Reset calendar template fields
+      setEditableTitle("");
+      setEditableDescription("");
+      setEditableDuration(30);
+    }
   };
 
   const insertTagIntoSubject = (tag: string) => {
@@ -273,8 +366,8 @@ export function TemplatesPage({
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Email Templates</h1>
-              <p className="text-sm text-gray-600">Edit your email templates</p>
+              <h1 className="text-xl font-semibold text-gray-900">Templates</h1>
+              <p className="text-sm text-gray-600">Create and edit your email and calendar templates</p>
             </div>
           </div>
           <Button 
@@ -291,9 +384,32 @@ export function TemplatesPage({
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* Template Selection */}
+          {/* Template Type Selection */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Template Type</label>
+                <div className="flex gap-3">
+                  <Button
+                    variant={templateType === "email" ? "default" : "outline"}
+                    onClick={() => setTemplateType("email")}
+                    className="flex items-center gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Email Template
+                  </Button>
+                  <Button
+                    variant={templateType === "calendar" ? "default" : "outline"}
+                    onClick={() => setTemplateType("calendar")}
+                    className="flex items-center gap-2"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Calendar Template
+                  </Button>
+                </div>
+              </div>
+
+              {/* Template Selection */}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Select Template</label>
                 <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
@@ -301,21 +417,34 @@ export function TemplatesPage({
                     <SelectValue placeholder="Choose a template to edit" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sortedTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id} className="text-gray-900 hover:bg-blue-50 focus:bg-blue-50">
-                        <span className="font-medium">{template.name}</span>
-                      </SelectItem>
-                    ))}
+                    {templateType === "email" ? (
+                      sortedTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.id} className="text-gray-900 hover:bg-blue-50 focus:bg-blue-50">
+                          <span className="font-medium">{template.name}</span>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      calendarTemplates?.map((template) => (
+                        <SelectItem key={template.id} value={template.id} className="text-gray-900 hover:bg-blue-50 focus:bg-blue-50">
+                          <span className="font-medium">{template.name}</span>
+                        </SelectItem>
+                      )) || []
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
-              {selectedTemplate && (
+              {selectedTemplate && templateType === "email" && (
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Category:</span> {selectedTemplate.category}
                   {selectedTemplate.isSystem && (
                     <span className="ml-4 text-blue-600">• System Template</span>
                   )}
+                </div>
+              )}
+              {templateType === "calendar" && calendarTemplates && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Calendar Templates:</span> {calendarTemplates.length} available
                 </div>
               )}
             </div>
@@ -324,100 +453,147 @@ export function TemplatesPage({
           {/* Template Editor */}
           {selectedTemplateId && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-              {/* Subject Line */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-700">Subject Line</label>
-                  <div className="relative">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowSubjectTagsDropdown(!showSubjectTagsDropdown)}
-                      className="text-xs"
-                    >
-                      <Tag className="h-3 w-3 mr-1" />
-                      Insert Tag
-                    </Button>
-                    {showSubjectTagsDropdown && (
-                      <div className="absolute top-full right-0 mt-1 w-72 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
-                        <div className="p-2">
-                          {dynamicTags.map((tagInfo, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                              onClick={() => {
-                                insertTagIntoSubject(tagInfo.tag);
-                                setShowSubjectTagsDropdown(false);
-                              }}
-                            >
-                              <tagInfo.icon className="h-4 w-4 text-gray-500" />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-blue-600">{tagInfo.tag}</div>
-                                <div className="text-xs text-gray-500">{tagInfo.description}</div>
-                              </div>
+              {templateType === "email" ? (
+                <>
+                  {/* Subject Line */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-700">Subject Line</label>
+                      <div className="relative">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowSubjectTagsDropdown(!showSubjectTagsDropdown)}
+                          className="text-xs"
+                        >
+                          <Tag className="h-3 w-3 mr-1" />
+                          Insert Tag
+                        </Button>
+                        {showSubjectTagsDropdown && (
+                          <div className="absolute top-full right-0 mt-1 w-72 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
+                            <div className="p-2">
+                              {dynamicTags.map((tagInfo, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                  onClick={() => {
+                                    insertTagIntoSubject(tagInfo.tag);
+                                    setShowSubjectTagsDropdown(false);
+                                  }}
+                                >
+                                  <tagInfo.icon className="h-4 w-4 text-gray-500" />
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-blue-600">{tagInfo.tag}</div>
+                                    <div className="text-xs text-gray-500">{tagInfo.description}</div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
+                    <Input
+                      id="template-subject"
+                      value={editableSubject}
+                      onChange={(e) => setEditableSubject(e.target.value)}
+                      placeholder="Enter email subject..."
+                      className="font-medium"
+                    />
                   </div>
-                </div>
-                <Input
-                  id="template-subject"
-                  value={editableSubject}
-                  onChange={(e) => setEditableSubject(e.target.value)}
-                  placeholder="Enter email subject..."
-                  className="font-medium"
-                />
-              </div>
 
-              {/* Email Body */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-700">Email Body</label>
-                  <div className="relative">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowBodyTagsDropdown(!showBodyTagsDropdown)}
-                      className="text-xs"
-                    >
-                      <Tag className="h-3 w-3 mr-1" />
-                      Insert Tag
-                    </Button>
-                    {showBodyTagsDropdown && (
-                      <div className="absolute top-full right-0 mt-1 w-72 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
-                        <div className="p-2">
-                          {dynamicTags.map((tagInfo, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                              onClick={() => {
-                                insertTagIntoBody(tagInfo.tag);
-                                setShowBodyTagsDropdown(false);
-                              }}
-                            >
-                              <tagInfo.icon className="h-4 w-4 text-gray-500" />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-blue-600">{tagInfo.tag}</div>
-                                <div className="text-xs text-gray-500">{tagInfo.description}</div>
-                              </div>
+                  {/* Email Body */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-700">Email Body</label>
+                      <div className="relative">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowBodyTagsDropdown(!showBodyTagsDropdown)}
+                          className="text-xs"
+                        >
+                          <Tag className="h-3 w-3 mr-1" />
+                          Insert Tag
+                        </Button>
+                        {showBodyTagsDropdown && (
+                          <div className="absolute top-full right-0 mt-1 w-72 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
+                            <div className="p-2">
+                              {dynamicTags.map((tagInfo, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                  onClick={() => {
+                                    insertTagIntoBody(tagInfo.tag);
+                                    setShowBodyTagsDropdown(false);
+                                  }}
+                                >
+                                  <tagInfo.icon className="h-4 w-4 text-gray-500" />
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-blue-600">{tagInfo.tag}</div>
+                                    <div className="text-xs text-gray-500">{tagInfo.description}</div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
+                    <Textarea
+                      id="template-body"
+                      value={editableBody}
+                      onChange={(e) => setEditableBody(e.target.value)}
+                      placeholder="Enter email content..."
+                      rows={16}
+                      className="resize-none"
+                    />
                   </div>
-                </div>
-                <Textarea
-                  id="template-body"
-                  value={editableBody}
-                  onChange={(e) => setEditableBody(e.target.value)}
-                  placeholder="Enter email content..."
-                  rows={16}
-                  className="resize-none"
-                />
-              </div>
+                </>
+              ) : (
+                <>
+                  {/* Calendar Template Title */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Meeting Title</label>
+                    <Input
+                      value={editableTitle}
+                      onChange={(e) => setEditableTitle(e.target.value)}
+                      placeholder="Enter meeting title..."
+                      className="font-medium"
+                    />
+                  </div>
+
+                  {/* Calendar Template Description */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Meeting Description</label>
+                    <Textarea
+                      value={editableDescription}
+                      onChange={(e) => setEditableDescription(e.target.value)}
+                      placeholder="Enter meeting description and agenda..."
+                      rows={8}
+                      className="resize-none"
+                    />
+                  </div>
+
+                  {/* Calendar Template Duration */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Duration (minutes)</label>
+                    <Select value={editableDuration.toString()} onValueChange={(value) => setEditableDuration(parseInt(value))}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15">15 minutes</SelectItem>
+                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="45">45 minutes</SelectItem>
+                        <SelectItem value="60">1 hour</SelectItem>
+                        <SelectItem value="90">1.5 hours</SelectItem>
+                        <SelectItem value="120">2 hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
 
               {hasUnsavedChanges && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
@@ -429,21 +605,23 @@ export function TemplatesPage({
             </div>
           )}
 
-          {/* Dynamic Tags Reference */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-blue-900 mb-3">Available Dynamic Tags</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {dynamicTags.map((tag, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm">
-                  <tag.icon className="h-4 w-4 text-blue-600" />
-                  <span className="font-mono text-blue-700 bg-blue-100 px-2 py-0.5 rounded text-xs">
-                    {tag.tag}
-                  </span>
-                  <span className="text-blue-800">{tag.description}</span>
-                </div>
-              ))}
+          {/* Dynamic Tags Reference - Only show for email templates */}
+          {templateType === "email" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h3 className="text-sm font-medium text-blue-900 mb-3">Available Dynamic Tags</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {dynamicTags.map((tag, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm">
+                    <tag.icon className="h-4 w-4 text-blue-600" />
+                    <span className="font-mono text-blue-700 bg-blue-100 px-2 py-0.5 rounded text-xs">
+                      {tag.tag}
+                    </span>
+                    <span className="text-blue-800">{tag.description}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -469,7 +647,7 @@ export function TemplatesPage({
               />
             </div>
             <div className="text-sm text-gray-600">
-              This will create a new custom template that you can reuse and select from dropdowns.
+              This will create a new custom {templateType} template that you can reuse and select from dropdowns.
             </div>
           </div>
           <DialogFooter>

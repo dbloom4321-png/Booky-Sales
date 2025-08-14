@@ -53,6 +53,18 @@ interface EmailTemplate {
   lastModified: string;
 }
 
+interface CalendarTemplate {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  duration: number; // in minutes
+  category: "discovery" | "demo" | "follow-up" | "custom";
+  isSystem?: boolean;
+  dateCreated: string;
+  lastModified: string;
+}
+
 interface User {
   email: string;
   name: string;
@@ -226,6 +238,54 @@ export default function HomePage() {
       body: "Hi {{first_name}},\n\nI hope this email finds you well. I came across {{company}} and was impressed by your growth in the {{industry}} space.\n\nI'm reaching out because I've been helping similar companies streamline their outbound processes and thought you might be interested in a quick conversation about:\n\n• How companies like {{company}} are increasing meeting booking rates by 300%\n• Specific automation strategies that could save your team 10+ hours per week\n• Industry benchmarks for outbound performance\n\nWould you be open to a brief 15-minute call this week to explore how this might apply to {{company}}?\n\nBest regards,\n{{sender_name}}",
       category: "outreach",
       isSystem: true,
+      dateCreated: "2024-01-01",
+      lastModified: "2024-01-01"
+    }
+  ]);
+
+  // Calendar templates state management
+  const [calendarTemplates, setCalendarTemplates] = useState<CalendarTemplate[]>([
+    {
+      id: "standard-meeting",
+      name: "Standard Meeting",
+      title: "Meeting with {{first_name}} {{last_name}}",
+      description: "30-minute meeting to discuss {{company}}'s needs and how we can help.",
+      duration: 30,
+      category: "discovery",
+      isSystem: true,
+      dateCreated: "2024-01-01",
+      lastModified: "2024-01-01"
+    },
+    {
+      id: "discovery-call",
+      name: "Discovery Call",
+      title: "Discovery Call - {{company}}",
+      description: "Let's explore how we can help {{company}} achieve their goals. We'll discuss current challenges and potential solutions.",
+      duration: 45,
+      category: "discovery",
+      isSystem: true,
+      dateCreated: "2024-01-01",
+      lastModified: "2024-01-01"
+    },
+    {
+      id: "demo-meeting",
+      name: "Demo Meeting",
+      title: "Product Demo for {{company}}",
+      description: "Live demonstration of our solution tailored to {{company}}'s specific needs and use cases.",
+      duration: 60,
+      category: "demo",
+      isSystem: true,
+      dateCreated: "2024-01-01",
+      lastModified: "2024-01-01"
+    },
+    {
+      id: "custom-calendar",
+      name: "Custom Calendar Template",
+      title: "",
+      description: "",
+      duration: 30,
+      category: "custom",
+      isSystem: false,
       dateCreated: "2024-01-01",
       lastModified: "2024-01-01"
     }
@@ -502,7 +562,7 @@ export default function HomePage() {
         {currentView === "account-settings" && <AccountSettingsPage onNavigate={navigateTo} onGoBack={goBack} />}
         {currentView === "meetings" && <MeetingsPage onNavigate={navigateTo} onGoBack={goBack} emailTemplates={emailTemplates} cadences={cadences} />}
         {currentView === "reports" && <ReportsPage onNavigate={navigateTo} onGoBack={goBack} initialView={reportsInitialView} cadences={cadences} campaignData={campaignData} />}
-        {currentView === "templates" && <TemplatesPage onNavigate={navigateTo} onGoBack={goBack} templates={emailTemplates} onAddTemplate={addTemplate} onUpdateTemplate={updateTemplate} onDeleteTemplate={deleteTemplate} onDuplicateTemplate={duplicateTemplate} />}
+        {currentView === "templates" && <TemplatesPage onNavigate={navigateTo} onGoBack={goBack} templates={emailTemplates} calendarTemplates={calendarTemplates} onAddTemplate={addTemplate} onUpdateTemplate={updateTemplate} onDeleteTemplate={deleteTemplate} onDuplicateTemplate={duplicateTemplate} />}
         {currentView === "support" && <SupportPage onNavigate={navigateTo} onGoBack={goBack} user={user} />}
       </main>
     </div>
